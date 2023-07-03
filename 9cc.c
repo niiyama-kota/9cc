@@ -15,6 +15,29 @@ typedef enum
 // input program
 char *user_input;
 
+void error(char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
+    exit(1);
+}
+
+void error_at(char *loc, char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+
+    int pos = loc - user_input;
+    fprintf(stderr, "%s\n", user_input);
+    fprintf(stderr, "%*s", pos, "");
+    fprintf(stderr, "^ ");
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
+    exit(1);
+}
+
 typedef struct Token Token;
 struct Token
 {
@@ -144,6 +167,7 @@ Node *new_node_num(int val)
 
 Node *expr();
 Node *mul();
+Node *unary();
 Node *primary();
 
 Node *expr()
@@ -169,23 +193,36 @@ Node *expr()
 
 Node *mul()
 {
-    Node *node = primary();
+    Node *node = unary();
 
     for (;;)
     {
         if (consume('*'))
         {
-            node = new_node(ND_MUL, node, primary());
+            node = new_node(ND_MUL, node, unary());
         }
         else if (consume('/'))
         {
-            node = new_node(ND_DIV, node, primary());
+            node = new_node(ND_DIV, node, unary());
         }
         else
         {
             return node;
         }
     }
+}
+
+Node *unary()
+{
+    if (consume('+'))
+    {
+        return primary();
+    }
+    if (consume('-'))
+    {
+        return new_node(ND_SUB, new_node_num(0), primary());
+    }
+    return primary();
 }
 
 Node *primary()
@@ -232,29 +269,6 @@ void gen(Node *node)
     }
 
     printf("    push rax\n");
-}
-
-void error(char *fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\n");
-    exit(1);
-}
-
-void error_at(char *loc, char *fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-
-    int pos = loc - user_input;
-    fprintf(stderr, "%s\n", user_input);
-    fprintf(stderr, "%*s", pos, "");
-    fprintf(stderr, "^ ");
-    vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\n");
-    exit(1);
 }
 
 int main(int argc, char **argv)
