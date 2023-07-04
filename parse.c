@@ -1,19 +1,8 @@
-#include <ctype.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-typedef enum
-{
-    TK_RESERVED, // symbol
-    TK_NUM,      // integer token
-    TK_EOF,      // end of file token
-} TokenKind;
+#include "9cc.h"
 
 // input program
 char *user_input;
+Token *token;
 
 void error(char *fmt, ...)
 {
@@ -38,20 +27,9 @@ void error_at(char *loc, char *fmt, ...)
     exit(1);
 }
 
-typedef struct Token Token;
-struct Token
+bool consume(char *op)
 {
-    TokenKind kind; // type of token
-    Token *next;    // token to input next
-    int val;        // integer if kind is TOK_NUM
-    char *str;      // string of token
-};
-
-Token *token;
-
-bool consume(char op)
-{
-    if (token->kind != TK_RESERVED || token->str[0] != op)
+    if (token->kind != TK_RESERVED || strlen(op) != token->len || memcmp(token->str, op, token->len))
     {
         return false;
     }
@@ -59,9 +37,9 @@ bool consume(char op)
     return true;
 }
 
-void expect(char op)
+void expect(char *op)
 {
-    if (token->kind != TK_RESERVED || token->str[0] != op)
+    if (token->kind != TK_RESERVED || strlen(op) != token->len || memcmp(token->str, op, token->len))
     {
         error_at(token->str, "expected '%c'", op);
     }
@@ -85,13 +63,19 @@ bool at_eof()
     return token->kind == TK_EOF;
 }
 
-Token *new_token(TokenKind kind, Token *cur, char *str)
+Token *new_token(TokenKind kind, Token *cur, char *str, int len)
 {
     Token *tok = calloc(1, sizeof(Token));
     tok->kind = kind;
     tok->str = str;
+    tok->len = len;
     cur->next = tok;
     return tok;
+}
+
+bool startswith(char *p, char *q)
+{
+    return memcmp(p, q, strlen(q)) == 0;
 }
 
 Token *tokenize()
@@ -110,43 +94,34 @@ Token *tokenize()
             continue;
         }
 
-        if (strchr("+-*/()", *p))
+        if (startswith(p, "==") || startswith(p, "!=") || startswith(p, "<=") || startswith(p, ">="))
         {
-            cur = new_token(TK_RESERVED, cur, p++);
+            cur = new_token(TK_RESERVED, cur, p, 2);
+            p += 2;
+            continue;
+        }
+
+        if (strchr("+-*/()<>", *p))
+        {
+            cur = new_token(TK_RESERVED, cur, p++, 1);
             continue;
         }
 
         if (isdigit(*p))
         {
-            cur = new_token(TK_NUM, cur, p);
+            cur = new_token(TK_NUM, cur, p, 0);
+            char *q = p;
             cur->val = strtol(p, &p, 10);
+            cur->len = p - q;
             continue;
         }
 
         error_at(p, "expected a number");
     }
 
-    new_token(TK_EOF, cur, p);
+    new_token(TK_EOF, cur, p, 0);
     return head.next;
 }
-
-typedef enum
-{
-    ND_ADD,
-    ND_SUB,
-    ND_MUL,
-    ND_DIV,
-    ND_NUM,
-} NodeKind;
-
-typedef struct Node Node;
-struct Node
-{
-    NodeKind kind;
-    Node *lhs;
-    Node *rhs;
-    int val;
-};
 
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs)
 {
@@ -165,22 +140,73 @@ Node *new_node_num(int val)
     return node;
 }
 
-Node *expr();
-Node *mul();
-Node *unary();
-Node *primary();
-
 Node *expr()
+{
+    Node *node = equality();
+    return node;
+}
+
+Node *equality()
+{
+    Node *node = relational();
+
+    for (;;)
+    {
+        if (consume("=="))
+        {
+            node = new_node(ND_EQ, node, relational());
+        }
+        else if (consume("!="))
+        {
+            node = new_node(ND_NEQ, node, relational());
+        }
+        else
+        {
+            return node;
+        }
+    }
+}
+
+Node *relational()
+{
+    Node *node = add();
+
+    for (;;)
+    {
+        if (consume("<"))
+        {
+            node = new_node(ND_ST, node, add());
+        }
+        else if (consume("<="))
+        {
+            node = new_node(ND_SEQ, node, add());
+        }
+        else if (consume(">"))
+        {
+            node = new_node(ND_ST, add(), node);
+        }
+        else if (consume(">="))
+        {
+            node = new_node(ND_SEQ, add(), node);
+        }
+        else
+        {
+            return node;
+        }
+    }
+}
+
+Node *add()
 {
     Node *node = mul();
 
     for (;;)
     {
-        if (consume('+'))
+        if (consume("+"))
         {
             node = new_node(ND_ADD, node, mul());
         }
-        else if (consume('-'))
+        else if (consume("-"))
         {
             node = new_node(ND_SUB, node, mul());
         }
@@ -197,11 +223,11 @@ Node *mul()
 
     for (;;)
     {
-        if (consume('*'))
+        if (consume("*"))
         {
             node = new_node(ND_MUL, node, unary());
         }
-        else if (consume('/'))
+        else if (consume("/"))
         {
             node = new_node(ND_DIV, node, unary());
         }
@@ -214,11 +240,11 @@ Node *mul()
 
 Node *unary()
 {
-    if (consume('+'))
+    if (consume("+"))
     {
         return primary();
     }
-    if (consume('-'))
+    if (consume("-"))
     {
         return new_node(ND_SUB, new_node_num(0), primary());
     }
@@ -227,69 +253,12 @@ Node *unary()
 
 Node *primary()
 {
-    if (consume('('))
+    if (consume("("))
     {
         Node *node = expr();
-        expect(')');
+        expect(")");
         return node;
     }
 
     return new_node_num(expect_number());
-}
-
-void gen(Node *node)
-{
-    if (node->kind == ND_NUM)
-    {
-        printf("    push %d\n", node->val);
-        return;
-    }
-
-    gen(node->lhs);
-    gen(node->rhs);
-
-    printf("    pop rdi\n");
-    printf("    pop rax\n");
-
-    switch (node->kind)
-    {
-    case ND_ADD:
-        printf("    add rax, rdi\n");
-        break;
-    case ND_SUB:
-        printf("    sub rax, rdi\n");
-        break;
-    case ND_MUL:
-        printf("    imul rax, rdi\n");
-        break;
-    case ND_DIV:
-        printf("    cqo\n");
-        printf("    idiv rax, rdi\n");
-        break;
-    }
-
-    printf("    push rax\n");
-}
-
-int main(int argc, char **argv)
-{
-    if (argc != 2)
-    {
-        fprintf(stderr, "引数の個数が正しくありません\n");
-        return 1;
-    }
-
-    user_input = argv[1];
-    token = tokenize();
-    Node *node = expr();
-
-    printf(".intel_syntax noprefix\n");
-    printf(".global main\n");
-    printf("main:\n");
-
-    gen(node);
-
-    printf("    pop rax\n");
-    printf("    ret\n");
-    return 0;
 }
