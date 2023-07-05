@@ -1,127 +1,7 @@
 #include "9cc.h"
 
-// input program
-char *user_input;
-Token *token;
-
-void error(char *fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\n");
-    exit(1);
-}
-
-void error_at(char *loc, char *fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-
-    int pos = loc - user_input;
-    fprintf(stderr, "%s\n", user_input);
-    fprintf(stderr, "%*s", pos, "");
-    fprintf(stderr, "^ ");
-    vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\n");
-    exit(1);
-}
-
-bool consume(char *op)
-{
-    if (token->kind != TK_RESERVED || strlen(op) != token->len || memcmp(token->str, op, token->len))
-    {
-        return false;
-    }
-    token = token->next;
-    return true;
-}
-
-void expect(char *op)
-{
-    if (token->kind != TK_RESERVED || strlen(op) != token->len || memcmp(token->str, op, token->len))
-    {
-        error_at(token->str, "expected '%c'", op);
-    }
-    token = token->next;
-}
-
-int expect_number()
-{
-    if (token->kind != TK_NUM)
-    {
-        error_at(token->str, "expected a number");
-    }
-    int val = token->val;
-    token = token->next;
-
-    return val;
-}
-
-bool at_eof()
-{
-    return token->kind == TK_EOF;
-}
-
-Token *new_token(TokenKind kind, Token *cur, char *str, int len)
-{
-    Token *tok = calloc(1, sizeof(Token));
-    tok->kind = kind;
-    tok->str = str;
-    tok->len = len;
-    cur->next = tok;
-    return tok;
-}
-
-bool startswith(char *p, char *q)
-{
-    return memcmp(p, q, strlen(q)) == 0;
-}
-
-Token *tokenize()
-{
-    char *p = user_input;
-    Token head;
-    head.next = NULL;
-    Token *cur = &head;
-
-    while (*p)
-    {
-        // skip blank
-        if (isspace(*p))
-        {
-            p++;
-            continue;
-        }
-
-        if (startswith(p, "==") || startswith(p, "!=") || startswith(p, "<=") || startswith(p, ">="))
-        {
-            cur = new_token(TK_RESERVED, cur, p, 2);
-            p += 2;
-            continue;
-        }
-
-        if (strchr("+-*/()<>", *p))
-        {
-            cur = new_token(TK_RESERVED, cur, p++, 1);
-            continue;
-        }
-
-        if (isdigit(*p))
-        {
-            cur = new_token(TK_NUM, cur, p, 0);
-            char *q = p;
-            cur->val = strtol(p, &p, 10);
-            cur->len = p - q;
-            continue;
-        }
-
-        error_at(p, "expected a number");
-    }
-
-    new_token(TK_EOF, cur, p, 0);
-    return head.next;
-}
+Node *code[100];
+LVar *locals;
 
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs)
 {
@@ -140,9 +20,35 @@ Node *new_node_num(int val)
     return node;
 }
 
+void *program()
+{
+    int i = 0;
+    while (!at_eof())
+    {
+        code[i++] = stmt();
+    }
+    code[i] = NULL;
+}
+
+Node *stmt()
+{
+    Node *node = expr();
+    expect(";");
+    return node;
+}
+
 Node *expr()
 {
+    return assign();
+}
+
+Node *assign()
+{
     Node *node = equality();
+    if (consume("="))
+    {
+        node = new_node(ND_ASSIGN, node, assign());
+    }
     return node;
 }
 
@@ -257,6 +163,30 @@ Node *primary()
     {
         Node *node = expr();
         expect(")");
+        return node;
+    }
+
+    Token *tok = consume_ident();
+    if (tok)
+    {
+        Node *node = calloc(1, sizeof(Node));
+        node->kind = ND_LVAR;
+
+        LVar *lvar = find_lvar(tok);
+        if (lvar)
+        {
+            node->offset = lvar->offset;
+        }
+        else
+        {
+            lvar = calloc(1, sizeof(LVar));
+            lvar->next = locals;
+            lvar->name = tok->str;
+            lvar->len = tok->len;
+            lvar->offset = ((locals) ? locals->offset : 0) + 8;
+            node->offset = lvar->offset;
+            locals = lvar;
+        }
         return node;
     }
 
