@@ -60,6 +60,10 @@ assert 8 'aa = 3; zz = 5; aa + zz;'
 assert 6 'aa= bb=3; aa + bb;'
 
 assert 6 'return 6;'
+assert 5 'returnx = 5; return returnx;'
 assert 6 'aa= bb = 3; return aa + bb;'
+
+assert 3 'a = 0; if (3 < 4) a = 3; return a;'
+assert 0 'a = 0; if (3 > 4) a = 3; return a;'
 
 echo OK

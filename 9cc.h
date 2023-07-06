@@ -38,6 +38,7 @@ typedef enum
     ND_LVAR,   // local variable
     ND_STMT,   // statement
     ND_RETURN, // return
+    ND_IF,     // if
 } NodeKind;
 
 typedef struct Node Node;
@@ -88,3 +89,5 @@ extern Node *code[100];
 void gen(Node *node);
 
 LVar *find_lvar(Token *tok);
+
+extern int labels;

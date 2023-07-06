@@ -41,7 +41,21 @@ Node *stmt()
         expect(";");
         return node;
     }
-    else {
+    else if (consume("if"))
+    {
+        if (consume("("))
+        {
+            Node *node;
+            node = calloc(1, sizeof(Node));
+            node->kind = ND_IF;
+            node->lhs = expr();
+            expect(")");
+            node->rhs = stmt();
+            return node;
+        }
+    }
+    else
+    {
         Node *node = expr();
         expect(";");
         return node;
