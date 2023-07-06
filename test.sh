@@ -59,4 +59,7 @@ assert 3 'aa = 3; aa;'
 assert 8 'aa = 3; zz = 5; aa + zz;'
 assert 6 'aa= bb=3; aa + bb;'
 
+assert 6 'return 6;'
+assert 6 'aa= bb = 3; return aa + bb;'
+
 echo OK

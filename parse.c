@@ -32,9 +32,20 @@ void *program()
 
 Node *stmt()
 {
-    Node *node = expr();
-    expect(";");
-    return node;
+    if (consume("return"))
+    {
+        Node *node;
+        node = calloc(1, sizeof(Node));
+        node->kind = ND_RETURN;
+        node->lhs = expr();
+        expect(";");
+        return node;
+    }
+    else {
+        Node *node = expr();
+        expect(";");
+        return node;
+    }
 }
 
 Node *expr()
