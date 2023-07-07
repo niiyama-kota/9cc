@@ -66,4 +66,13 @@ assert 6 'aa= bb = 3; return aa + bb;'
 assert 3 'a = 0; if (3 < 4) a = 3; return a;'
 assert 0 'a = 0; if (3 > 4) a = 3; return a;'
 
+assert 3 'if (3 < 4) a = 3; else a = 5; return a;'
+assert 5 'if (3 > 4) a = 3; else a = 5; return a;'
+assert 5 'if (4 > 4) a = 3; else a = 5; return a;'
+assert 3 'if (1) a = 3; else a = 5; return a;'
+assert 5 'if (0) a = 3; else a = 5; return a;'
+
+assert 0 'a = 0; while(0) a=1; return a;'
+assert 5 'a = 0; while(a < 5) a=a+1; return a;'
+
 echo OK

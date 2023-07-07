@@ -51,8 +51,33 @@ Node *stmt()
             node->lhs = expr();
             expect(")");
             node->rhs = stmt();
+            if (consume("else"))
+            {
+                node->kind = ND_IFELSE;
+                Node *branch;
+                branch = calloc(1, sizeof(Node));
+                // branch->kind = ND_BRANCH;
+                branch->lhs = node->rhs;
+                branch->rhs = stmt();
+                node->rhs = branch;
+            }
             return node;
         }
+        error("expect '('\n");
+    }
+    else if (consume("while"))
+    {
+        Node *node;
+        node = calloc(1, sizeof(Node));
+        node->kind = ND_WHILE;
+        if (consume("("))
+        {
+            node->lhs = expr();
+            expect(")");
+            node->rhs = stmt();
+            return node;
+        }
+        error("expect '('\n");
     }
     else
     {

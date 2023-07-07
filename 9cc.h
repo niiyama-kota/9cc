@@ -39,6 +39,8 @@ typedef enum
     ND_STMT,   // statement
     ND_RETURN, // return
     ND_IF,     // if
+    ND_IFELSE, // if else
+    ND_WHILE,  // while
 } NodeKind;
 
 typedef struct Node Node;
