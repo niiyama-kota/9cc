@@ -3,12 +3,23 @@
 Node *code[100];
 LVar *locals;
 
-Node *new_node(NodeKind kind, Node *lhs, Node *rhs)
+Node *new_node(NodeKind kind, int children_num, ...)
 {
+    va_list ap;
+    va_start(ap, children_num);
     Node *node = calloc(1, sizeof(Node));
     node->kind = kind;
-    node->lhs = lhs;
-    node->rhs = rhs;
+    node->children = calloc(children_num, sizeof(Node));
+    for (int i = 0; i < children_num; i++)
+    {
+        node->children[i] = va_arg(ap, Node *);
+    }
+    return node;
+}
+Node *new_node_with_no_kind(int children_num)
+{
+    Node *node = calloc(1, sizeof(Node));
+    node->children = calloc(children_num, sizeof(Node));
     return node;
 }
 
@@ -37,7 +48,8 @@ Node *stmt()
         Node *node;
         node = calloc(1, sizeof(Node));
         node->kind = ND_RETURN;
-        node->lhs = expr();
+        node->children = calloc(1, sizeof(Node));
+        node->children[0] = expr();
         expect(";");
         return node;
     }
@@ -48,18 +60,14 @@ Node *stmt()
             Node *node;
             node = calloc(1, sizeof(Node));
             node->kind = ND_IF;
-            node->lhs = expr();
+            node->children = calloc(3, sizeof(Node));
+            node->children[0] = expr();
             expect(")");
-            node->rhs = stmt();
+            node->children[1] = stmt();
             if (consume("else"))
             {
                 node->kind = ND_IFELSE;
-                Node *branch;
-                branch = calloc(1, sizeof(Node));
-                // branch->kind = ND_BRANCH;
-                branch->lhs = node->rhs;
-                branch->rhs = stmt();
-                node->rhs = branch;
+                node->children[2] = stmt();
             }
             return node;
         }
@@ -70,11 +78,12 @@ Node *stmt()
         Node *node;
         node = calloc(1, sizeof(Node));
         node->kind = ND_WHILE;
+        node->children = calloc(2, sizeof(Node));
         if (consume("("))
         {
-            node->lhs = expr();
+            node->children[0] = expr();
             expect(")");
-            node->rhs = stmt();
+            node->children[1] = stmt();
             return node;
         }
         error("expect '('\n");
@@ -97,7 +106,9 @@ Node *assign()
     Node *node = equality();
     if (consume("="))
     {
-        node = new_node(ND_ASSIGN, node, assign());
+        // node->children[1] = assign();
+        node = new_node(ND_ASSIGN, 2, node, assign());
+        return node;
     }
     return node;
 }
@@ -110,40 +121,36 @@ Node *equality()
     {
         if (consume("=="))
         {
-            node = new_node(ND_EQ, node, relational());
+            node = new_node(ND_EQ, 2, node, relational());
         }
         else if (consume("!="))
         {
-            node = new_node(ND_NEQ, node, relational());
+            node = new_node(ND_NEQ, 2, node, relational());
         }
-        else
-        {
-            return node;
-        }
+        return node;
     }
 }
 
 Node *relational()
 {
     Node *node = add();
-
     for (;;)
     {
         if (consume("<"))
         {
-            node = new_node(ND_ST, node, add());
+            node = new_node(ND_ST, 2, node, add());
         }
         else if (consume("<="))
         {
-            node = new_node(ND_SEQ, node, add());
+            node = new_node(ND_SEQ, 2, node, add());
         }
         else if (consume(">"))
         {
-            node = new_node(ND_ST, add(), node);
+            node = new_node(ND_ST, 2, add(), node);
         }
         else if (consume(">="))
         {
-            node = new_node(ND_SEQ, add(), node);
+            node = new_node(ND_SEQ, 2, add(), node);
         }
         else
         {
@@ -155,16 +162,15 @@ Node *relational()
 Node *add()
 {
     Node *node = mul();
-
     for (;;)
     {
         if (consume("+"))
         {
-            node = new_node(ND_ADD, node, mul());
+            node = new_node(ND_ADD, 2, node, mul());
         }
         else if (consume("-"))
         {
-            node = new_node(ND_SUB, node, mul());
+            node = new_node(ND_SUB, 2, node, mul());
         }
         else
         {
@@ -181,11 +187,11 @@ Node *mul()
     {
         if (consume("*"))
         {
-            node = new_node(ND_MUL, node, unary());
+            node = new_node(ND_MUL, 2, node, unary());
         }
         else if (consume("/"))
         {
-            node = new_node(ND_DIV, node, unary());
+            node = new_node(ND_DIV, 2, node, unary());
         }
         else
         {
@@ -202,9 +208,13 @@ Node *unary()
     }
     if (consume("-"))
     {
-        return new_node(ND_SUB, new_node_num(0), primary());
+        Node *node = new_node(ND_SUB, 2, new_node_num(0), primary());
+        return node;
     }
-    return primary();
+    else
+    {
+        return primary();
+    }
 }
 
 Node *primary()

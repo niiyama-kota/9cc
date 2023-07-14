@@ -47,8 +47,7 @@ typedef struct Node Node;
 struct Node
 {
     NodeKind kind;
-    Node *lhs;
-    Node *rhs;
+    Node **children;
     int val;    // use if kind is ND_NUM
     int offset; // use if kind is ND_LVAR
 };
@@ -74,7 +73,8 @@ void expect(char *op);
 int expect_number();
 bool at_eof();
 Token *tokenize();
-Node *new_node(NodeKind kind, Node *lhs, Node *rhs);
+Node *new_node(NodeKind kind, int children_num, ...);
+Node *new_node_with_no_kind(int children_num);
 Node *new_node_num(int val);
 void *program();
 Node *stmt();
