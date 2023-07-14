@@ -75,4 +75,7 @@ assert 5 'if (0) a = 3; else a = 5; return a;'
 assert 0 'a = 0; while(0) a=1; return a;'
 assert 5 'a = 0; while(a < 5) a=a+1; return a;'
 
+assert 10 'x = 0; for(a = 0;a < 5; a = a + 1) x = x + a; return x;'
+assert 10 'x = 10; for(;0;) x = x + 1; return x;'
+
 echo OK

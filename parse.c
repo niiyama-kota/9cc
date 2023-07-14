@@ -16,12 +16,6 @@ Node *new_node(NodeKind kind, int children_num, ...)
     }
     return node;
 }
-Node *new_node_with_no_kind(int children_num)
-{
-    Node *node = calloc(1, sizeof(Node));
-    node->children = calloc(children_num, sizeof(Node));
-    return node;
-}
 
 Node *new_node_num(int val)
 {
@@ -84,6 +78,32 @@ Node *stmt()
             node->children[0] = expr();
             expect(")");
             node->children[1] = stmt();
+            return node;
+        }
+        error("expect '('\n");
+    }
+    else if (consume("for"))
+    {
+        Node *node = new_node(ND_FOR, 4, NULL, NULL, NULL, NULL);
+        if (consume("("))
+        {
+            if (!consume(";"))
+            {
+                node->children[0] = expr();
+                expect(";");
+            }
+            if (!consume(";"))
+            {
+                node->children[1] = expr();
+                expect(";");
+            }
+            if (!consume(")"))
+            {
+                node->children[2] = expr();
+                expect(")");
+            }
+            node->children[3] = stmt();
+
             return node;
         }
         error("expect '('\n");
