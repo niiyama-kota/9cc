@@ -9,9 +9,9 @@ assert() {
     actual="$?"
 
     if [ "$actual" = "$expected" ]; then
-        echo "$input -> $actual"
+        printf '\033[32m%s\033[m\n' "$input -> $actual"
     else
-        echo "$input => $expected expected, but got $actual"
+        printf '\033[31m%s\033[m\n' "ERROR: $input => $expected expected, but got $actual"
         exit 1
     fi
 }
@@ -78,4 +78,5 @@ assert 5 'a = 0; while(a < 5) a=a+1; return a;'
 assert 10 'x = 0; for(a = 0;a < 5; a = a + 1) x = x + a; return x;'
 assert 10 'x = 10; for(;0;) x = x + 1; return x;'
 
-echo OK
+
+printf '\033[32m%s\033[m\n' 'OK'
